@@ -9,11 +9,18 @@ from src.credentials import Credentials, NullableCredentials
 from src.shotgun import DownloadAllFiles, ShotgridClient, ShotGridLogin, GetShotGridTasks
 
 class Toast(QtWidgets.QWidget):
-    def activate(self, text: str):
+    def error(self, text: str):
         dlg = QtWidgets.QMessageBox(self)
         dlg.setText(text)
         dlg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Close)
         dlg.setIcon(QtWidgets.QMessageBox.Icon.Critical)
+        dlg.exec()
+
+    def notify(self, text: str):
+        dlg = QtWidgets.QMessageBox(self)
+        dlg.setText(text)
+        dlg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Close)
+        dlg.setIcon(QtWidgets.QMessageBox.Icon.Information)
         dlg.exec()
 
 class LoginForm(QtWidgets.QWidget):
@@ -62,18 +69,6 @@ class LoginForm(QtWidgets.QWidget):
                 self.username.setText(credentials.username)
             if credentials.password is not None:
                 self.password.setText(credentials.password)
-        
-
-        # self.setContentsMargins(100, 100, 100, 100)
-        # self.setFrameStyle(QtWidgets.QFrame.Shadow.Sunken | QtWidgets.QFrame.Shape.StyledPanel)
-        # self.setLineWidth(1)
-
-        # self.setFrameStyle("margin: 5px;")
-        # self.setMaximumHeight(self.height() / 2)
-        # self.setMargin(self.width() / 2)
-        # self.resize(self.sizeHint())
-        # self.setFrameShape()
-        # self.setFrameStyle(QtCore. QFrame::Panel | QFrame::Raised);
 
     def loginUser(self):
         self.next.emit()
@@ -130,20 +125,6 @@ class ShotgridUrl(QtWidgets.QWidget):
         self.next.emit()
 
     
-
-
-# class Core (QtWidgets.QWidget):
-#     logout = QtCore.Signal()
-#     credentials: Credentials
-#     sgClient: Shotgun
-
-#     def __init__(self, credentials: Credentials) -> None:
-#         super(Core, self).__init__()
-
-#         self.credentials = credentials
-#         self.sgClient = Shotgun(
-#             ""
-#         )
 
 class QVLine(QtWidgets.QFrame):
     def __init__(self):
@@ -243,11 +224,11 @@ class TasksPage(QtWidgets.QWidget):
     
     QtCore.Slot(int)
     def downloadFilesSuccess(self, result: object):
-        print("Download Successful" + str(result))
+        Toast(self).notify("Download Successful" + str(result))
 
     QtCore.Slot(int)
     def downloadFilesFailure(self, e: Exception):
-        print("Download Failed: " + str(e))
+        Toast(self).error("Download Failed: " + str(e))
 
     @QtCore.Slot(object)
     def loginSuccess(self):
@@ -259,9 +240,8 @@ class TasksPage(QtWidgets.QWidget):
 
     @QtCore.Slot(Exception)
     def loginFailed(self, e: Exception):
+        Toast(self).error("Could not log in: " + str(e))
         self.successfulLogin.emit(False)
-        Toast(self).activate("Could not log in: " + str(e))
-
 
     @QtCore.Slot(object)
     def getTasksSuccess(self, result: object):
@@ -283,7 +263,7 @@ class TasksPage(QtWidgets.QWidget):
 
     @QtCore.Slot(Exception)
     def getTasksFailed(self, e: Exception):
-        Toast(self).activate("Could not get tasks: " + str(e))
+        Toast(self).error("Could not get tasks: " + str(e))
         self.successfulLogin.emit(False)
 
 
@@ -323,7 +303,7 @@ class MyApp (QtWidgets.QMainWindow):
         self.setCentralWidget(holder)
 
         if credentials is not None:
-            if credentials.url is  None:
+            if credentials.url is None:
                 return
 
             # Go from URL page to Login Page
@@ -354,14 +334,14 @@ class MyApp (QtWidgets.QMainWindow):
     def advance(self):
         index = self.frames.currentIndex()
         if index >= self.frames.count() - 1:
-            return Toast(self).activate("Cannot go further forward")
+            return Toast(self).error("Cannot go further forward")
 
         self.frames.setCurrentIndex(index + 1)
 
     def backtrack(self):
         index = self.frames.currentIndex()
         if index <= 0:
-            return Toast(self).activate("Cannot go further backward")
+            return Toast(self).error("Cannot go further backward")
 
         self.frames.setCurrentIndex(index - 1)
 
