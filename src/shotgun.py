@@ -1,4 +1,4 @@
-import shotgun_api3 # type: ignore
+import shotgun_api3  # type: ignore
 from PySide6 import QtCore
 from os import getcwd, mkdir
 
@@ -6,16 +6,16 @@ from typing import List, Optional, Any
 
 from src.credentials import Credentials
 
+
 class ShotgridClient:
     sg: Optional[shotgun_api3.Shotgun] = None
     username: Optional[str] = None
-        
 
     def logout(self):
         if self.sg is None:
             raise Exception("User is not logged in")
 
-        self.sg.close()
+        self.sg.close()  # type: ignore
         self.sg = None
 
     def login(self, url: str, login: str, password: str):
@@ -26,58 +26,84 @@ class ShotgridClient:
         if self.sg is None:
             raise Exception("User is not logged in")
 
-        user = self.sg.find_one('HumanUser', [[ 'login', 'contains', self.username ]]) # type: ignore
-        
-        if user is None or user.get('id') is None: # type: ignore
-            raise Exception('Could not find a HumanUser with the login: ' + str(self.username))
+        user = self.sg.find_one(  # type: ignore
+            'HumanUser', [['login', 'contains', self.username]])
 
-        filters = [ # type: ignore
-            ['task_assignees', 'is', { 'type': 'HumanUser', 'id': user['id'] }]
+        if user is None or user.get('id') is None:  # type: ignore
+            raise Exception(
+                'Could not find a HumanUser with the login: ' + str(self.username))
+
+        filters = [  # type: ignore
+            ['task_assignees', 'is', {'type': 'HumanUser', 'id': user['id']}]
         ]
 
-        d: Any = self.sg.find( # type: ignore
-            "Task", filters, fields=['content', 'due_date'], 
+        d: Any = self.sg.find(  # type: ignore
+            "Task", filters, fields=['content', 'due_date'],
             order=[
-                { 'field_name': 'due_date', 'direction': 'asc' }
-        ]) 
+                {'field_name': 'due_date', 'direction': 'asc'}
+            ])
         # print(d)
         return d
 
-    def getAllVersions(self, taskId: int) -> List[Any]:
+    def getTask(self, taskId: int) -> Any:
         if self.sg is None:
             raise Exception("User is not logged in")
-        
-        task = self.sg.find_one("Task", [['id', 'is', taskId]], fields=['sg_versions']) # type: ignore
-        return task['sg_versions']  # type: ignore
+
+        task = self.sg.find_one("Task", [['id', 'is', taskId]], fields=[  # type: ignore
+                                'sg_versions', 'project'])
+        return task  # type: ignore
 
     def getAllPublishedFiles(self, versionId: int) -> List[Any]:
         if self.sg is None:
             raise Exception("User is not logged in")
 
-        version = self.sg.find_one("Version", [['id', 'is', versionId]], # type: ignore
-            fields=['published_files']
-        ) 
-        return version['published_files'] # type: ignore
+        version = self.sg.find_one("Version", [['id', 'is', versionId]],  # type: ignore
+                                   fields=['published_files']
+                                   )
+        return version['published_files']  # type: ignore
 
     def getFileUrls(self, versionId: int) -> Any:
         if self.sg is None:
             raise Exception("User is not logged in")
 
-        attachments = self.sg.find("Attachment", [[ 'attachment_links', 'is', { 'type': 'Version', 'id': versionId } ]], # type: ignore
-            fields=['this_file']
-        ) 
+        attachments = self.sg.find("Attachment", [['attachment_links', 'is', {'type': 'Version', 'id': versionId}]],  # type: ignore
+                                   fields=['this_file']
+                                   )
 
-        return list(map(lambda attachment : attachment['this_file'], attachments)) #type: ignore
+        return list(
+            map(lambda attachment: attachment['this_file'], attachments))  # type: ignore
 
     def downloadFile(self, file: object, location: str):
         if self.sg is None:
             raise Exception("User is not logged in")
-        
-        self.sg.download_attachment(file, file_path=location) # type: ignore
+
+        self.sg.download_attachment(file, file_path=location)  # type: ignore
+
+    def createNewVersion(self, taskId: int, projectId: int, versionName: str) -> Any:
+        if self.sg is None:
+            raise Exception("User is not logged in")
+
+        print(taskId, projectId, versionName)
+
+        return self.sg.create("Version", {  # type: ignore
+            'project': {'type': 'Project', 'id': projectId},
+            'code': versionName,
+            'sg_task': {'type': 'Task', 'id': taskId}
+        })
+
+    def uploadFile(self, entityId: int, filepath: str):
+        if self.sg is None:
+            raise Exception("User is not logged in")
+
+        displayName = filepath.split('/').pop()
+        self.sg.upload("Version", entityId, filepath, field_name="sg_uploaded_movie",  # type: ignore
+                       display_name=displayName)
+
 
 class Signals(QtCore.QObject):
     error = QtCore.Signal(Exception)
     result = QtCore.Signal(object)
+
 
 def buildDir(*dir: str):
     tail = ''
@@ -87,8 +113,9 @@ def buildDir(*dir: str):
             mkdir(tail)
         except FileExistsError:
             pass
-    
+
     return tail
+
 
 class DownloadAllFiles(QtCore.QRunnable):
     client: ShotgridClient
@@ -107,13 +134,13 @@ class DownloadAllFiles(QtCore.QRunnable):
     def run(self):
         try:
             cwd = getcwd()
-            print(cwd)
-
-            versions = self.client.getAllVersions(self.taskId)
+            versions = self.client.getTask(
+                self.taskId)['sg_versions']  # type: ignore
             for version in versions:
                 files = self.client.getFileUrls(version['id'])
                 versionName = version['name']
-                dir = buildDir(cwd, 'tasks', self.taskName, 'versions', versionName)
+                dir = buildDir(cwd, 'tasks', self.taskName,
+                               'versions', versionName)
 
                 for file in files:
                     filename = file['name']
@@ -121,6 +148,36 @@ class DownloadAllFiles(QtCore.QRunnable):
                     self.client.downloadFile(file, filepath)
 
             self.signals.result.emit(versions)
+        except Exception as e:
+            self.signals.error.emit(str(e))
+
+
+class UploadFiles(QtCore.QRunnable):
+    client: ShotgridClient
+    signals: Signals
+    taskId: int
+    path: str
+
+    def __init__(self, client: ShotgridClient, taskId: int, path: str) -> None:
+        super().__init__()
+        self.client = client
+        self.signals = Signals()
+        self.taskId = taskId
+        self.path = path
+
+    @QtCore.Slot()
+    def run(self):
+        try:
+            y = self.client.getTask(self.taskId)
+            print(y)
+
+            displayName = self.path.split('/').pop()
+            x = self.client.createNewVersion(
+                self.taskId, y['project']['id'], displayName)
+            print(x)
+
+            self.client.uploadFile(x['id'], self.path)
+            self.signals.result.emit(self.path)
         except Exception as e:
             self.signals.error.emit(str(e))
 
@@ -141,6 +198,7 @@ class GetShotGridTasks(QtCore.QRunnable):
             self.signals.result.emit(result)
         except Exception as e:
             self.signals.error.emit(str(e))
+
 
 class ShotGridLogin(QtCore.QRunnable):
     client: ShotgridClient
