@@ -1,5 +1,6 @@
 from PySide6 import QtWidgets
 
+
 class Toast(QtWidgets.QWidget):
     def error(self, text: str):
         dlg = QtWidgets.QMessageBox(self)

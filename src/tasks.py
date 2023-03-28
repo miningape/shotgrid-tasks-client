@@ -7,22 +7,26 @@ from src.shotgun import DownloadAllFiles, GetShotGridTasks, ShotGridLogin, Shotg
 from src.toast import Toast
 from src.credentials import Credentials
 
+
 class TaskWidget (QtWidgets.QFrame):
     taskId: int
-    download = QtCore.Signal(int, str)
+    taskName: str
+    download = QtCore.Signal(int, str, str)
     upload = QtCore.Signal(int, str)
 
     def __init__(self, taskName: str, dueDate: str, taskId: int) -> None:
         super(TaskWidget, self).__init__()
         self.taskId = taskId
+        self.taskName = taskName
 
         labelWidget = QtWidgets.QLabel("Name: \"" + taskName + "\"")
         dueLabelWidget = QtWidgets.QLabel("Due: " + str(dueDate))
 
         uploadFileButton = QtWidgets.QPushButton("Upload files")
         uploadFileButton.clicked.connect(self.openFileDialogue)
+
         downloadAllFilesButton = QtWidgets.QPushButton("Download files")
-        downloadAllFilesButton.clicked.connect(lambda: self.download.emit(self.taskId, taskName))
+        downloadAllFilesButton.clicked.connect(self.openDirectoryDialogue)
 
         layout = QtWidgets.QGridLayout(self)
         layout.addWidget(labelWidget, 0, 0)
@@ -32,17 +36,25 @@ class TaskWidget (QtWidgets.QFrame):
         layout.addWidget(downloadAllFilesButton, 1, 2)
 
         self.setFixedSize(layout.sizeHint())
-        self.setFrameStyle( QtWidgets.QFrame.Shape.Box )
+        self.setFrameStyle(QtWidgets.QFrame.Shape.Box)
+
+    def openDirectoryDialogue(self):
+        cwd = getcwd()
+        dir = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Directory Selector", cwd
+        )
+        self.download.emit(self.taskId, self.taskName, dir)
 
     def openFileDialogue(self):
         cwd = getcwd()
-        file = QtWidgets.QFileDialog.getOpenFileName(self, "File Selector", cwd) # type: ignore
+        file = QtWidgets.QFileDialog.getOpenFileName(  # type: ignore
+            self, "File Selector", cwd)
         self.upload.emit(self.taskId, file[0])
 
 
 class TasksWidget (QtWidgets.QListWidget):
     elements: QtWidgets.QWidget
-    download = QtCore.Signal(int, str)
+    download = QtCore.Signal(int, str, str)
     upload = QtCore.Signal(int, str)
 
     def __init__(self):
@@ -62,7 +74,8 @@ class TasksWidget (QtWidgets.QListWidget):
 
     def addTask(self, name: str, dueDate: str, id: int):
         item = QtWidgets.QListWidgetItem()
-        item.setFlags(item.flags() & ~(QtCore.Qt.ItemFlag.ItemIsSelectable | QtCore.Qt.ItemFlag.ItemIsEnabled))
+        item.setFlags(item.flags() & ~(
+            QtCore.Qt.ItemFlag.ItemIsSelectable | QtCore.Qt.ItemFlag.ItemIsEnabled))
         self.addItem(item)
         widget = TaskWidget(name, dueDate, id)
         widget.download.connect(self.downloadFiles)
@@ -71,12 +84,13 @@ class TasksWidget (QtWidgets.QListWidget):
         self.setItemWidget(item, widget)
 
     @QtCore.Slot(int, str)
-    def downloadFiles(self, id: int, name: str):
-        self.download.emit(id, name)
+    def downloadFiles(self, id: int, name: str, outDir: str):
+        self.download.emit(id, name, outDir)
 
     @QtCore.Slot(int, str)
     def uploadFiles(self, id: int, path: str):
         self.upload.emit(id, path)
+
 
 class TasksPage(QtWidgets.QWidget):
     client: ShotgridClient
@@ -84,6 +98,7 @@ class TasksPage(QtWidgets.QWidget):
     successfulLogin = QtCore.Signal(bool)
     tasks: TasksWidget
     stateLabel: QtWidgets.QLabel
+    doingIo = False
 
     def __init__(self):
         super(TasksPage, self).__init__()
@@ -107,55 +122,67 @@ class TasksPage(QtWidgets.QWidget):
         layout.addWidget(self.tasks)
 
     @QtCore.Slot(int, str)
-    def downloadFiles(self, taskId: int, taskName: str):
+    def downloadFiles(self, taskId: int, taskName: str, outDir: str):
+        if self.doingIo is True:
+            return Toast().error("Already performing I/O please wait until the operation is complete before performing another one.")
+
+        self.doingIo = True
         self.stateLabel.setText("Downloading...")
         self.stateLabel.show()
 
-        promise = DownloadAllFiles(self.client, taskId, taskName)
+        promise = DownloadAllFiles(self.client, taskId, taskName, outDir)
         promise.signals.result.connect(self.downloadFilesSuccess)
         promise.signals.error.connect(self.downloadFilesFailure)
-        self.threadpool.start(promise) # type: ignore
+        self.threadpool.start(promise)  # type: ignore
 
-    QtCore.Slot(object)
-    def downloadFilesSuccess(self, result: object):
+    @QtCore.Slot(object)
+    def downloadFilesSuccess(self):
+        self.doingIo = False
         self.stateLabel.hide()
-        Toast(self).notify("Download Successful: " + str(result))
+        Toast(self).notify("Download Successful!")
 
-    QtCore.Slot(Exception)
+    @QtCore.Slot(Exception)
     def downloadFilesFailure(self, e: Exception):
+        self.doingIo = False
         self.stateLabel.hide()
         Toast(self).error("Download Failed: " + str(e))
 
     @QtCore.Slot(int, str)
     def uploadFile(self, taskId: int, filepath: str):
+        if self.doingIo is True:
+            return Toast().error("Already performing I/O please wait until the operation is complete before performing another one.")
+
+        self.doingIo = True
         self.stateLabel.setText("Uploading...")
         self.stateLabel.show()
 
         promise = UploadFiles(self.client, taskId, filepath)
         promise.signals.result.connect(self.uploadFilesSuccess)
         promise.signals.error.connect(self.uploadFilesFailure)
-        self.threadpool.start(promise) # type: ignore
+        self.threadpool.start(promise)  # type: ignore
 
-    QtCore.Slot(object)
-    def uploadFilesSuccess(self, result: object):
+    @QtCore.Slot(object)
+    def uploadFilesSuccess(self):
+        self.doingIo = False
         self.stateLabel.hide()
-        Toast(self).notify("Upload Successful: " + str(result))
+        Toast(self).notify("Upload Successful!")
 
-    QtCore.Slot(Exception)
+    @QtCore.Slot(Exception)
     def uploadFilesFailure(self, e: Exception):
+        self.doingIo = False
         self.stateLabel.hide()
         Toast(self).error("Upload Failed: " + str(e))
 
     def loginUser(self, credentials: Credentials):
         promise = ShotGridLogin(
-                self.client, 
-                credentials
-            )
+            self.client,
+            credentials
+        )
         self.stateLabel.setText("Logging in.")
         self.stateLabel.show()
         promise.signals.result.connect(self.loginSuccess)
         promise.signals.error.connect(self.loginFailed)
-        self.threadpool.start(promise) # type: ignore
+        self.threadpool.start(promise)  # type: ignore
 
     @QtCore.Slot(object)
     def loginSuccess(self):
@@ -178,8 +205,8 @@ class TasksPage(QtWidgets.QWidget):
 
         if not isinstance(result, list):
             raise Exception()
-            
-        for task in result: # type: ignore
+
+        for task in result:  # type: ignore
             if not isinstance(task, Dict):
                 raise Exception()
 
@@ -187,7 +214,7 @@ class TasksPage(QtWidgets.QWidget):
             dueDate: str = task['due_date']
             id: int = task['id']
             self.tasks.addTask(name, dueDate, id)
-        
+
         self.stateLabel.hide()
 
     @QtCore.Slot(Exception)

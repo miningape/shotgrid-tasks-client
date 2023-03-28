@@ -3,6 +3,7 @@ from typing import Optional
 
 from src.credentials import NullableCredentials
 
+
 class ShotgridUrl(QtWidgets.QWidget):
     next = QtCore.Signal()
 
@@ -18,7 +19,8 @@ class ShotgridUrl(QtWidgets.QWidget):
         self.url.textEdited.connect(self.textChanged)
         self.url.setCursorPosition(8)
         if credentials is not None and credentials.url is not None:
-            self.url.setStyleSheet("border: 1px solid darkgreen; border-radius: 4px;")
+            self.url.setStyleSheet(
+                "border: 1px solid darkgreen; border-radius: 4px;")
         # self.url.setMaximumWidth(800)
 
         self.nextButton = QtWidgets.QPushButton("Log In")
@@ -34,21 +36,27 @@ class ShotgridUrl(QtWidgets.QWidget):
         hiddenElement.hide()
 
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(self.nextButton, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(
+            self.nextButton, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         layout.addStretch()
-        layout.addWidget(instructions, alignment=QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignBottom)
+        layout.addWidget(instructions, alignment=QtCore.Qt.AlignmentFlag.AlignCenter |
+                         QtCore.Qt.AlignmentFlag.AlignBottom)
         # self.layout.addSpacing(10)
-        layout.addWidget(self.url, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(self.url, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter |
+                         QtCore.Qt.AlignmentFlag.AlignTop)
         layout.addStretch()
-        layout.addWidget(hiddenElement, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(
+            hiddenElement, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
 
     def textChanged(self, text: str):
         t = text.strip()
         if t.endswith(".shotgrid.autodesk.com/") and t.startswith('https://') and t.find(" ") == -1:
-            self.url.setStyleSheet("border: 1px solid darkgreen; border-radius: 4px;")
+            self.url.setStyleSheet(
+                "border: 1px solid darkgreen; border-radius: 4px;")
             self.nextButton.setVisible(True)
         else:
-            self.url.setStyleSheet("border: 1px solid darkred; border-radius: 4px;")
+            self.url.setStyleSheet(
+                "border: 1px solid darkred; border-radius: 4px;")
             self.nextButton.setVisible(False)
 
     def click(self):

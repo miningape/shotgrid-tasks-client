@@ -1,6 +1,6 @@
 import shotgun_api3  # type: ignore
 from PySide6 import QtCore
-from os import getcwd, mkdir
+from os import mkdir
 
 from typing import List, Optional, Any
 
@@ -121,25 +121,27 @@ class DownloadAllFiles(QtCore.QRunnable):
     client: ShotgridClient
     taskId: int
     taskName: str
+    outDir: str
     signals: Signals
 
-    def __init__(self, client: ShotgridClient, taskId: int, taskName: str) -> None:
+    def __init__(self, client: ShotgridClient, taskId: int, taskName: str, outDir: str) -> None:
         super(DownloadAllFiles, self).__init__()
         self.client = client
         self.taskId = taskId
         self.taskName = taskName
+        self.outDir = outDir
         self.signals = Signals()
 
     @QtCore.Slot()
     def run(self):
         try:
-            cwd = getcwd()
             versions = self.client.getTask(
                 self.taskId)['sg_versions']  # type: ignore
+
             for version in versions:
                 files = self.client.getFileUrls(version['id'])
                 versionName = version['name']
-                dir = buildDir(cwd, 'tasks', self.taskName,
+                dir = buildDir(self.outDir, 'tasks', self.taskName,
                                'versions', versionName)
 
                 for file in files:

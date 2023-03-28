@@ -3,6 +3,7 @@ from typing import Optional
 
 from src.credentials import NullableCredentials
 
+
 class LoginForm(QtWidgets.QWidget):
     next = QtCore.Signal()
     previous = QtCore.Signal()
@@ -22,7 +23,7 @@ class LoginForm(QtWidgets.QWidget):
 
         setUrl = QtWidgets.QPushButton("Change URL")
         setUrl.setSizePolicy(policy)
-        setUrl.clicked.connect(lambda : self.previous.emit())
+        setUrl.clicked.connect(lambda: self.previous.emit())
 
         setUrlInvisible = QtWidgets.QPushButton("Change URL")
         setUrlInvisible.setSizePolicy(policy)
@@ -34,15 +35,19 @@ class LoginForm(QtWidgets.QWidget):
         self.formLayout = QtWidgets.QFormLayout()
         self.formLayout.addRow("Username:", self.username)
         self.formLayout.addRow("Password:", self.password)
-        self.formLayout.setFormAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignBottom)
+        self.formLayout.setFormAlignment(
+            QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignBottom)
 
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(setUrl, alignment=QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(setUrl, alignment=QtCore.Qt.AlignmentFlag.AlignTop |
+                         QtCore.Qt.AlignmentFlag.AlignLeft)
         layout.addStretch()
         layout.addLayout(self.formLayout)
-        layout.addWidget(self.button, alignment=QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(self.button, alignment=QtCore.Qt.AlignmentFlag.AlignCenter |
+                         QtCore.Qt.AlignmentFlag.AlignTop)
         layout.addStretch()
-        layout.addWidget(setUrlInvisible, alignment=QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(setUrlInvisible, alignment=QtCore.Qt.AlignmentFlag.AlignTop |
+                         QtCore.Qt.AlignmentFlag.AlignLeft)
 
         if credentials is not None:
             if credentials.username is not None:

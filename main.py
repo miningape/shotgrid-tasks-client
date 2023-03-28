@@ -10,6 +10,8 @@ from src.tasks import TasksPage
 from src.toast import Toast
 from src.url import ShotgridUrl
 
+CONFIG_FILE = ".config.json"
+
 
 class Window(QtWidgets.QMainWindow):
     shotgridUrlForm: ShotgridUrl
@@ -60,7 +62,7 @@ class Window(QtWidgets.QMainWindow):
         )
 
     def saveCredentials(self):
-        with open(".config.json", 'w') as file:
+        with open(CONFIG_FILE, 'w') as file:
             file.write(
                 json.dumps(
                     asdict(
@@ -99,8 +101,8 @@ class Window(QtWidgets.QMainWindow):
 
 
 def loadConfig():
-    open(".config.json", 'a')   # Hack to create file if it doesn't exist
-    with open('.config.json', 'r') as file:
+    open(CONFIG_FILE, 'a')   # Hack to create file if it doesn't exist
+    with open(CONFIG_FILE, 'r') as file:
         userConfigFile = file.read()
 
     if len(userConfigFile) <= 2:
